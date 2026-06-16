@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>工艺介质表 - Fluid List</title>
+  <link rel="stylesheet" href="vendor/element-ui.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #f5f7fa; font-family: 'Microsoft YaHei', sans-serif; }
+    .header { background: linear-gradient(135deg, #1a3a5c 0%, #2d6aa0 100%); color: #fff; padding: 18px 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .header h1 { font-size: 20px; font-weight: 600; letter-spacing: 2px; }
+    .header .sub { font-size: 14px; opacity: 0.85; margin-left: 16px; font-weight: 400; }
+    .header .doc { font-size: 13px; opacity: 0.75; }
+    .table-wrap { padding: 12px; }
+    .el-table { font-size: 12px; }
+    .el-table::before { display: none; }
+    .el-table th { background: #f0f4f8 !important; text-align: center; border-bottom: 2px solid #d0d8e0; }
+    .el-table th .cell { font-weight: 600; font-size: 12px; white-space: pre-line; line-height: 1.35; color: #303133; padding: 8px 4px; text-align: center; }
+    .el-table td { padding: 3px 0; vertical-align: middle; text-align: center; }
+    .el-table td .cell { padding: 2px 6px; line-height: 1.6; overflow: visible !important; text-align: center; }
+    .el-table .cell { word-break: break-word; }
+    .el-table__body tr { height: auto !important; }
+    .el-table--striped .el-table__body tr.el-table__row--striped td { background: #fafbfc; }
+    .el-select .el-input__inner { font-size: 12px; height: 28px; line-height: 28px; }
+
+    /* === 悬停编辑（范围 / 文本 共用） === */
+    .hover-cell { position: relative; min-height: 26px; line-height: 26px; }
+    .hover-cell .display-text {
+      font-size: 12px; color: #303133; text-align: center; display: block;
+      border-bottom: 1px solid transparent; transition: border-color 0.2s;
+    }
+    .hover-cell.range .display-text { white-space: normal; word-break: break-word; }
+    .hover-cell.text .display-text { white-space: pre-wrap; word-break: break-word; overflow: visible; }
+    .el-table__body tr:hover .hover-cell .display-text { border-bottom-color: #d0d8e0; }
+    .hover-cell.focused .display-text { visibility: hidden; }
+    .hover-cell .edit-layer {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      display: flex; align-items: center; gap: 2px;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.15s, visibility 0.15s;
+      z-index: 2;
+      white-space: nowrap;
+    }
+    .hover-cell.focused .edit-layer { opacity: 1; visibility: visible; }
+    .hover-cell .edit-layer input {
+      width: 100%; min-width: 0;
+      border: none; border-bottom: 1px solid #dcdfe6;
+      padding: 0 2px; font-size: 12px; height: 22px; line-height: 22px;
+      background: transparent; transition: border-color 0.15s;
+      font-family: inherit; color: #303133; text-align: center;
+    }
+    .hover-cell .edit-layer input:focus { outline: none; border-bottom-color: #409eff; }
+    .hover-cell .edit-layer .sep { color: #c0c4cc; flex-shrink: 0; font-size: 11px; }
+    .hover-cell .edit-layer .toggle-icon {
+      flex-shrink: 0; cursor: pointer; font-size: 13px; color: #c0c4cc;
+      width: 20px; text-align: center; line-height: 22px; border-radius: 2px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .hover-cell .edit-layer .toggle-icon:hover { color: #409eff; background: #ecf5ff; }
+
+    /* 长文本编辑 */
+    .hover-cell.long .edit-layer { height: auto; min-height: 52px; }
+    .hover-cell.long .edit-layer textarea {
+      width: 100%; min-width: 0; resize: vertical;
+      border: 1px solid #dcdfe6; border-radius: 2px;
+      padding: 2px 4px; font-size: 11px; line-height: 1.45;
+      background: #fff; transition: border-color 0.15s;
+      font-family: inherit; min-height: 44px;
+    }
+    .hover-cell.long .edit-layer textarea:focus { outline: none; border-color: #409eff; }
+
+    /* 备注 / 使用位置 单元格 */
+    .remark-cell-text {
+      display: block; font-size: 12px; line-height: 1.6; color: #303133; text-align: center;
+      overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      cursor: pointer; max-height: 40px;
+      border-bottom: 1px solid transparent; transition: border-color 0.2s;
+      padding: 0;
+    }
+    .el-table__body tr:hover .remark-cell-text { border-bottom-color: #d0d8e0; }
+    /* popover 内 textarea 与显示文字统一 */
+    .remark-popover-textarea .el-textarea__inner {
+      font-size: 12px; line-height: 1.6; color: #303133;
+      padding: 6px 8px; font-family: inherit;
+    }
+
+    /* 操作列 */
+    .row-del-btn { cursor: pointer; color: #c0c4cc; font-size: 16px; transition: color 0.15s; line-height: 26px; }
+    .row-del-btn:hover { color: #f56c6c; }
+    .add-row-bar { margin-top: 10px; text-align: center; }
+
+    /* 介质类别列 */
+    .cat-cell { line-height: 1.6; }
+    .cat-name { display: block; }
+    .cat-insert-line {
+      display: block; text-align: center; line-height: 16px;
+      font-size: 12px; color: transparent; cursor: pointer;
+      transition: all 0.15s; user-select: none;
+    }
+    .el-table__body tr:hover .cat-insert-line {
+      color: #909399;
+    }
+    .el-table__body tr:hover .cat-insert-line:hover {
+      color: #409eff;
+    }
+
+    /* === 比较符小标签 === */
+    .cmp-tag {
+      display: inline-block; font-size: 11px; line-height: 18px; padding: 0 3px;
+      font-weight: 500; letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div>
+      <h1>NEO ENERGY GREEN NICKEL PROJECT<span class="sub">工艺介质表</span></h1>
+    </div>
+    <div class="doc">文件编号 1140-000-LIS-PR-001</div>
+  </div>
+  <div class="table-wrap">
+    <el-table :data="tableData" border stripe :span-method="spanMethod" size="small" style="width:100%">
+      <el-table-column prop="id" label="序号" width="55"></el-table-column>
+      <el-table-column label="介质类别" width="120">
+        <template slot-scope="s">
+          <div class="cat-cell">
+            <el-select v-if="s.row._merge && s.row._mergeFirst" v-model="s.row.category" filterable clearable size="mini" style="width:100%" @click.stop>
+              <el-option v-for="o in categoryOpts" :key="o" :label="o" :value="o"></el-option>
+            </el-select>
+            <span v-else-if="!s.row._merge" class="cat-name">{{ s.row.category }}</span>
+            <span v-if="s.row._merge && s.row._mergeFirst" class="cat-insert-line" @click.stop="insertRowAfter(s.row)" title="新增行至此类别">+</span>
+          </div>
+        </template>
+      </el-table-column>
+
+      <!-- 介质用途 -->
+      <el-table-column label="介质用途" width="200">
+        <template slot-scope="s"><div @click.stop>
+          <el-select v-model="s.row.usage" filterable clearable size="mini" style="width:100%">
+            <el-option v-for="o in usageOpts" :key="o" :label="o" :value="o"></el-option>
+          </el-select>
+        </div></template>
+      </el-table-column>
+
+      <!-- 介质代码 -->
+      <el-table-column label="介质代码" width="100">
+        <template slot-scope="s"><div @click.stop>
+          <el-select v-model="s.row.code" filterable clearable size="mini" style="width:100%">
+            <el-option v-for="o in codeOpts" :key="o" :label="o" :value="o"></el-option>
+          </el-select>
+        </div></template>
+      </el-table-column>
+
+      <!-- PFD流程编号 -->
+      <el-table-column label="PFD流程编号" width="110">
+        <template slot-scope="s"><text-cell :row="s.row" field="pfdNo"></text-cell></template>
+      </el-table-column>
+
+      <!-- 操作温度 -->
+      <el-table-column label="操作温度\n°C" width="155">
+        <template slot-scope="s"><range-cell :row="s.row" field="opTemp"></range-cell></template>
+      </el-table-column>
+
+      <!-- 操作压力 -->
+      <el-table-column label="操作压力\nkPa(g)" width="155">
+        <template slot-scope="s"><range-cell :row="s.row" field="opPressure"></range-cell></template>
+      </el-table-column>
+
+      <!-- 密度 -->
+      <el-table-column label="密度\nt/m³" width="145">
+        <template slot-scope="s"><range-cell :row="s.row" field="density"></range-cell></template>
+      </el-table-column>
+
+      <!-- 固体含量 -->
+      <el-table-column label="固体含量\n% w/w" width="145">
+        <template slot-scope="s"><range-cell :row="s.row" field="solidContent"></range-cell></template>
+      </el-table-column>
+
+      <!-- 标称粒径 -->
+      <el-table-column label="标称粒径\nD50微米" width="145">
+        <template slot-scope="s"><range-cell :row="s.row" field="particleSize"></range-cell></template>
+      </el-table-column>
+
+      <!-- pH值范围 -->
+      <el-table-column label="pH值范围" width="145">
+        <template slot-scope="s"><range-cell :row="s.row" field="phRange"></range-cell></template>
+      </el-table-column>
+
+      <!-- 氯化物浓度 -->
+      <el-table-column label="氯化物浓度\nmg/L" width="145">
+        <template slot-scope="s"><text-cell :row="s.row" field="chlorideConc"></text-cell></template>
+      </el-table-column>
+
+      <!-- 易燃或可燃 -->
+      <el-table-column label="易燃或可燃" width="100">
+        <template slot-scope="s"><div @click.stop>
+          <el-select v-model="s.row.flammable" clearable size="mini" style="width:100%">
+            <el-option v-for="o in ['是','否']" :key="o" :label="o" :value="o"></el-option>
+          </el-select>
+        </div></template>
+      </el-table-column>
+
+      <!-- 腐蚀性 -->
+      <el-table-column label="腐蚀性" width="90">
+        <template slot-scope="s"><div @click.stop>
+          <el-select v-model="s.row.corrosive" clearable size="mini" style="width:100%">
+            <el-option label="是" value="是"></el-option>
+            <el-option label="否" value="否"></el-option>
+            <el-option label="变量" value="变量"></el-option>
+          </el-select>
+        </div></template>
+      </el-table-column>
+
+      <!-- 备注 -->
+      <el-table-column label="备注" width="260">
+        <template slot-scope="s">
+          <text-cell :row="s.row" field="remark" :long="true"></text-cell>
+        </template>
+      </el-table-column>
+
+      <!-- 名称 -->
+      <el-table-column label="名称" width="120">
+        <template slot-scope="s"><text-cell :row="s.row" field="name"></text-cell></template>
+      </el-table-column>
+
+      <!-- 使用位置 -->
+      <el-table-column label="使用位置" width="180">
+        <template slot-scope="s">
+          <el-popover placement="bottom" width="360" trigger="click" :open-delay="0" :close-delay="0">
+            <div style="margin-bottom:8px;font-size:12px;color:#909399;">编辑使用位置（行 {{ s.$index + 1 }}）</div>
+            <el-input type="textarea" v-model="s.row.location" rows="4" size="small" placeholder="输入使用位置" class="remark-popover-textarea"></el-input>
+            <span slot="reference" class="remark-cell-text">{{ s.row.location || '' }}</span>
+          </el-popover>
+        </template>
+      </el-table-column>
+
+      <!-- 操作 -->
+      <el-table-column label="操作" width="55">
+        <template slot-scope="s">
+          <span class="row-del-btn" @click.stop="delRow(s.$index)" title="删除该行">×</span>
+        </template>
+      </el-table-column>
+    </el-table>
+    <div class="add-row-bar">
+      <el-button type="primary" size="small" icon="el-icon-plus" @click="addRow">新增行</el-button>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/vue.min.js"></script>
+<script src="vendor/element-ui.js"></script>
+<script src="data.js"></script>
+<script>
+// ===== 工具函数 =====
+function parseRangeVal(v) {
+  if (v === null || v === undefined || v === '') return ['', ''];
+  var s = String(v).trim();
+  if (/^(无此项|不适用|不适用\/无此项|N\/A|TBC|变量|根据物料平衡|-)$/.test(s))
+    return [s, ''];
+  var m = s.match(/^([\d.]+)\s*[~～\-]\s*([\d.]+)/);
+  if (m) return [m[1], m[2]];
+  m = s.match(/^([<>≤≥])\s*([\d.]+)/);
+  if (m) return [m[1] + m[2], ''];
+  if (/^-?[\d.]+$/.test(s)) return [s, s];
+  return [s, ''];
+}
+
+function buildRangeVal(parts) {
+  var min = parts[0], max = parts[1];
+  if (!min && !max) return '';
+  if (min && !max) return min;
+  if (min && max && min === max) return min;
+  if (min && max) return min + '~' + max;
+  if (!min && max) return max;
+  return '';
+}
+
+function formatCmpDisplay(v) {
+  if (!v) return '';
+  var s = String(v).trim();
+  var m = s.match(/^([<>])\s*(\d+\.?\d*)/);
+  if (m) {
+    var cls = m[1] === '<' ? 'cmp-tag' : 'cmp-tag gt';
+    return '<span class="' + cls + '">' + m[1] + ' ' + m[2] + '</span>';
+  }
+  return s;
+}
+
+function recomputeMeta(rows) {
+  var i = 0;
+  while (i < rows.length) {
+    var row = rows[i];
+    row._idx = i;
+    if (row._merge && row._mergeFirst) {
+      var span = row._mergeSpan;
+      var end = Math.min(i + span, rows.length);
+      for (var j = i; j < end; j++) {
+        rows[j]._idx = j;
+        rows[j]._isLastInGroup = (j === end - 1);
+      }
+      i = end;
+    } else if (row._merge && !row._mergeFirst) {
+      row._isLastInGroup = false;
+      i++;
+    } else {
+      row._isLastInGroup = true;
+      i++;
+    }
+  }
+}
+
+// ===== 组件：文本悬停编辑 =====
+Vue.component('text-cell', {
+  template: '<div class="hover-cell text" :class="[{ focused: editing }, long ? \'long\' : \'\']" @click="activate">' +
+    '<span class="display-text">{{ displayText }}</span>' +
+    '<div class="edit-layer">' +
+      '<input v-if="!long" v-model="txt" @focus="editing=true" @keyup.enter="done" ref="inp" />' +
+      '<textarea v-if="long" v-model="txt" @focus="editing=true" ref="inp" rows="3" @click.stop></textarea>' +
+    '</div></div>',
+  props: ['row', 'field', 'long'],
+  data: function() {
+    return { txt: this.row[this.field] || '', editing: false };
+  },
+  computed: {
+    displayText: function() {
+      var v = this.row[this.field];
+      return v || '';
+    }
+  },
+  watch: {
+    'row[field]': function(v) { this.txt = v || ''; }
+  },
+  methods: {
+    activate: function() {
+      if (this.editing) return;
+      this.editing = true;
+      var self = this;
+      this.$nextTick(function() { if (self.$refs.inp) self.$refs.inp.focus(); });
+      this._onDocDown = function(e) {
+        if (!self.$el.contains(e.target)) { self.close(); }
+      };
+      var self2 = this;
+      this.$nextTick(function() { document.addEventListener('mousedown', self2._onDocDown); });
+    },
+    close: function() {
+      this.editing = false;
+      this.commit();
+      if (this._onDocDown) { document.removeEventListener('mousedown', this._onDocDown); this._onDocDown = null; }
+    },
+    commit: function() { this.$set(this.row, this.field, this.txt); },
+    onBlur: function() {},
+    done: function() { this.close(); }
+  }
+});
+
+// ===== 组件：范围悬停编辑 =====
+Vue.component('range-cell', {
+  template: '<div class="hover-cell range" :class="{ focused: editing }" @click="activate">' +
+    '<span class="display-text" v-html="displayHtml"></span>' +
+    '<div class="edit-layer" @click.stop>' +
+      '<input v-model="minVal" @focus="editing=true" @keyup.enter="done" ref="minInp" />' +
+      '<span class="sep">~</span>' +
+      '<input v-model="maxVal" @focus="editing=true" @keyup.enter="done" ref="maxInp" />' +
+    '</div></div>',
+  props: ['row', 'field'],
+  data: function() {
+    var parts = parseRangeVal(this.row[this.field]);
+    return {
+      minVal: parts[0], maxVal: parts[1],
+      editing: false
+    };
+  },
+  computed: {
+    displayHtml: function() {
+      var v = this.row[this.field];
+      if (v === null || v === undefined || v === '') return '';
+      return formatCmpDisplay(String(v));
+    }
+  },
+  watch: {
+    'row[field]': function(newVal) {
+      var parts = parseRangeVal(newVal);
+      this.minVal = parts[0]; this.maxVal = parts[1];
+    }
+  },
+  methods: {
+    activate: function() {
+      if (this.editing) return;
+      this.editing = true;
+      var self = this;
+      this.$nextTick(function() { if (self.$refs.minInp) self.$refs.minInp.focus(); });
+      this._onDocDown = function(e) {
+        if (!self.$el.contains(e.target)) { self.close(); }
+      };
+      var self2 = this;
+      this.$nextTick(function() { document.addEventListener('mousedown', self2._onDocDown); });
+    },
+    close: function() {
+      this.editing = false;
+      this.commit();
+      if (this._onDocDown) { document.removeEventListener('mousedown', this._onDocDown); this._onDocDown = null; }
+    },
+    commit: function() { this.$set(this.row, this.field, buildRangeVal([this.minVal, this.maxVal])); },
+    onBlur: function() {},
+    done: function() { this.close(); }
+  }
+});
+
+// ===== 主实例 =====
+new Vue({
+  el: '#app',
+  data: function() {
+    var rows = FLUID_DATA.map(function(r, i) { r._idx = i; if (!r.id && r.id !== 0) r.id = i + 1; return r; });
+    recomputeMeta(rows);
+    return { tableData: rows };
+  },
+  computed: {
+    categoryOpts: function() {
+      var set = {};
+      this.tableData.forEach(function(r) { if (r.category) set[r.category] = true; });
+      return Object.keys(set).sort();
+    },
+    usageOpts: function() {
+      var set = {};
+      this.tableData.forEach(function(r) { if (r.usage) set[r.usage] = true; });
+      return Object.keys(set).sort();
+    },
+    codeOpts: function() {
+      var set = {};
+      this.tableData.forEach(function(r) { if (r.code) set[r.code] = true; });
+      return Object.keys(set).sort();
+    }
+  },
+  methods: {
+    spanMethod: function(opts) {
+      if (opts.columnIndex !== 1) return [1, 1];
+      var row = this.tableData[opts.rowIndex];
+      if (!row._merge) return [1, 1];
+      return row._mergeFirst ? [row._mergeSpan, 1] : [0, 0];
+    },
+    delRow: function(idx) {
+      var self = this;
+      this.$confirm('确认删除该行？', '提示', { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }).then(function() {
+        var row = self.tableData[idx];
+        if (row._merge) {
+          if (row._mergeFirst) {
+            if (row._mergeSpan > 1 && idx + 1 < self.tableData.length) {
+              var next = self.tableData[idx + 1];
+              if (next._merge) {
+                next.category = row.category;
+                next._mergeFirst = true;
+                next._mergeSpan = row._mergeSpan - 1;
+              }
+            }
+          } else {
+            for (var i = idx - 1; i >= 0; i--) {
+              if (self.tableData[i]._mergeFirst && self.tableData[i]._merge) {
+                self.tableData[i]._mergeSpan--;
+                break;
+              }
+            }
+          }
+        }
+        self.tableData.splice(idx, 1);
+        recomputeMeta(self.tableData);
+        self.$message.success('已删除');
+      }).catch(function() {});
+    },
+    addRow: function() {
+      var maxId = 0;
+      this.tableData.forEach(function(r) { if (r.id && r.id > maxId) maxId = r.id; });
+      this.tableData.push({
+        _merge: false, _mergeSpan: 1, _mergeFirst: true,
+        id: maxId + 1, category: '', usage: '', code: '', pfdNo: '',
+        opTemp: '', opPressure: '', density: '', solidContent: '',
+        particleSize: '', phRange: '', chlorideConc: '',
+        flammable: '', corrosive: '', remark: '', name: '', location: ''
+      });
+      recomputeMeta(this.tableData);
+      this.$message.success('已在末尾新增行');
+    },
+    insertRowAfter: function(row) {
+      // row is the first row of a merge group — insert after its last row
+      var cat = row.category || '';
+      var maxId = 0;
+      this.tableData.forEach(function(r) { if (r.id && r.id > maxId) maxId = r.id; });
+      var newRow = {
+        _merge: true, _mergeSpan: 1, _mergeFirst: false,
+        id: maxId + 1, category: '', usage: '', code: '', pfdNo: '',
+        opTemp: '', opPressure: '', density: '', solidContent: '',
+        particleSize: '', phRange: '', chlorideConc: '',
+        flammable: '', corrosive: '', remark: '', name: '', location: ''
+      };
+      var insertIdx = row._idx + row._mergeSpan;
+      row._mergeSpan++;
+      this.tableData.splice(insertIdx, 0, newRow);
+      recomputeMeta(this.tableData);
+      this.$message.success('已在 ' + (cat || '该组') + ' 中新增行');
+    }
+  }
+});
+</script>
+</body>
+</html>
