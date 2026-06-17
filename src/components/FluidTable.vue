@@ -12,12 +12,13 @@
       size="small"
     >
       <el-table-column
-        v-for="col in columns"
+        v-for="(col, index) in columns"
         :key="col.key"
         :prop="col.key"
         :label="col.label"
         :width="col.width"
         :min-width="col.minWidth"
+        :fixed="index < 4 ? 'left' : false"
       >
         <template #default="{ row, $index }">
           <!-- Select 下拉搜索列 -->
@@ -35,7 +36,18 @@
                   :key="opt"
                   :label="opt"
                   :value="opt"
-                />
+                >
+                  <el-tooltip
+                    v-if="col.key === 'code' && codeUsageMap[opt]"
+                    :content="codeUsageMap[opt]"
+                    placement="right"
+                    :open-delay="300"
+                    :hide-after="2000"
+                  >
+                    <span style="display:block;width:100%">{{ opt }}</span>
+                  </el-tooltip>
+                  <span v-else>{{ opt }}</span>
+                </el-option>
               </el-select>
             </div>
           </template>
@@ -115,6 +127,18 @@ export default {
         isFirst: info.isFirst
       }
     })
+  },
+
+  computed: {
+    codeUsageMap() {
+      const map = {}
+      this.tableData.forEach(row => {
+        if (row.code && row.usage) {
+          map[row.code] = row.usage
+        }
+      })
+      return map
+    }
   },
 
   methods: {

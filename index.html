@@ -88,8 +88,6 @@
     /* 操作列 */
     .row-del-btn { cursor: pointer; color: #c0c4cc; font-size: 16px; transition: color 0.15s; line-height: 26px; }
     .row-del-btn:hover { color: #f56c6c; }
-    .add-row-bar { margin-top: 10px; text-align: center; }
-
     /* 介质类别列 */
     .cat-cell { line-height: 1.6; }
     .cat-name { display: block; }
@@ -122,8 +120,8 @@
   </div>
   <div class="table-wrap">
     <el-table :data="tableData" border stripe :span-method="spanMethod" size="small" style="width:100%">
-      <el-table-column prop="id" label="序号" width="55"></el-table-column>
-      <el-table-column label="介质类别" width="120">
+      <el-table-column prop="id" label="序号" width="55" fixed></el-table-column>
+      <el-table-column label="介质类别" width="120" fixed>
         <template slot-scope="s">
           <div class="cat-cell">
             <el-select v-if="s.row._merge && s.row._mergeFirst" v-model="s.row.category" filterable clearable size="mini" style="width:100%" @click.stop>
@@ -136,7 +134,7 @@
       </el-table-column>
 
       <!-- 介质用途 -->
-      <el-table-column label="介质用途" width="200">
+      <el-table-column label="介质用途" width="200" fixed>
         <template slot-scope="s"><div @click.stop>
           <el-select v-model="s.row.usage" filterable clearable size="mini" style="width:100%">
             <el-option v-for="o in usageOpts" :key="o" :label="o" :value="o"></el-option>
@@ -145,7 +143,7 @@
       </el-table-column>
 
       <!-- 介质代码 -->
-      <el-table-column label="介质代码" width="100">
+      <el-table-column label="介质代码" width="100" fixed>
         <template slot-scope="s"><div @click.stop>
           <el-select v-model="s.row.code" filterable clearable size="mini" style="width:100%">
             <el-option v-for="o in codeOpts" :key="o" :label="o" :value="o"></el-option>
@@ -243,9 +241,6 @@
         </template>
       </el-table-column>
     </el-table>
-    <div class="add-row-bar">
-      <el-button type="primary" size="small" icon="el-icon-plus" @click="addRow">新增行</el-button>
-    </div>
   </div>
 </div>
 
